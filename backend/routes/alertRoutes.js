@@ -1,32 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const Alert = require("../models/Alert");
+const alertController = require("../controllers/alertController");
 
-// ✅ GET ACTIVE ALERTS
-router.get("/", async (req, res) => {
-  const alerts = await Alert.find({ resolved: false })
-    .populate("roomId")
-    .populate("deviceId")
-    .sort({ createdAt: -1 });
-
-  res.json(alerts);
-});
-
-// ✅ DISMISS ONE ALERT
-router.patch("/:id/resolve", async (req, res) => {
-  const alert = await Alert.findByIdAndUpdate(
-    req.params.id,
-    { resolved: true },
-    { new: true }
-  );
-
-  res.json(alert);
-});
-
-// ✅ CLEAR ALL ALERTS
-router.delete("/clear", async (req, res) => {
-  await Alert.updateMany({}, { resolved: true });
-  res.json({ msg: "All alerts cleared" });
-});
+router.get("/", alertController.getActiveAlerts);
+router.patch("/:id/resolve", alertController.resolveAlert);
+router.delete("/clear", alertController.clearAlerts);
 
 module.exports = router;

@@ -14,4 +14,6 @@ const schema = new mongoose.Schema({
   resolved: { type: Boolean, default: false }
 }, { timestamps: true });
 
+schema.index({ deviceId: 1, resolved: 1 });
+
 module.exports = mongoose.model("Alert", schema);

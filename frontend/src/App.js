@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { io as createSocket } from "socket.io-client";
 import "./App.css";
 
 import {
@@ -27,93 +28,243 @@ ChartJS.register(
   PointElement
 );
 
+const API_URL = (process.env.REACT_APP_API_URL || "http://localhost:5000").replace(/\/$/, "");
+
+const chartColors = ["#22c55e", "#f97316", "#3b82f6", "#eab308", "#ec4899", "#14b8a6"];
+
 function App() {
   const [rooms, setRooms] = useState([]);
   const [devices, setDevices] = useState([]);
   const [alerts, setAlerts] = useState([]);
-  const [heatmap, setHeatmap] = useState([]);
+  const [roomAnalytics, setRoomAnalytics] = useState([]);
+  const [deviceAnalytics, setDeviceAnalytics] = useState([]);
+  const [timeSeriesAnalytics, setTimeSeriesAnalytics] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [
+        roomsRes,
+        devicesRes,
+        alertsRes,
+        heatmapRes,
+        deviceAnalyticsRes,
+        timeSeriesRes
+      ] = await Promise.all([
+        axios.get(`${API_URL}/rooms`),
+        axios.get(`${API_URL}/devices`),
+        axios.get(`${API_URL}/alerts`),
+        axios.get(`${API_URL}/analytics/heatmap`),
+        axios.get(`${API_URL}/analytics/devices`),
+        axios.get(`${API_URL}/analytics/timeseries`)
+      ]);
+
+      setRooms(roomsRes.data);
+      setDevices(devicesRes.data);
+      setAlerts(alertsRes.data);
+      setRoomAnalytics(heatmapRes.data);
+      setDeviceAnalytics(deviceAnalyticsRes.data);
+      setTimeSeriesAnalytics(timeSeriesRes.data);
+    } catch (err) {
+      console.error("Fetch error:", err);
+    }
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
 
-  const fetchData = async () => {
-  try {
-    const roomsRes = await axios.get("http://localhost:5000/rooms");
-    const devicesRes = await axios.get("http://localhost:5000/devices");
-    const alertsRes = await axios.get("http://localhost:5000/alerts");
-    const heatmapRes = await axios.get("http://localhost:5000/analytics/heatmap");
+    const socket = createSocket(API_URL) || {
+      on: () => {},
+      off: () => {},
+      disconnect: () => {}
+    };
+    const refreshDashboard = () => fetchData();
+    const pollId = setInterval(refreshDashboard, 5000);
 
-    setRooms(roomsRes.data);
-    setDevices(devicesRes.data);
-    setAlerts(alertsRes.data);
-    setHeatmap(heatmapRes.data);   // ✅ ADD THIS
+    socket.on("alert_update", refreshDashboard);
+    socket.on("analytics_update", refreshDashboard);
+    socket.on("device_update", refreshDashboard);
 
-  } catch (err) {
-    console.error("Fetch error:", err);
-  }
-};
+    return () => {
+      clearInterval(pollId);
+      socket.off("alert_update", refreshDashboard);
+      socket.off("analytics_update", refreshDashboard);
+      socket.off("device_update", refreshDashboard);
+      socket.disconnect();
+    };
+  }, [fetchData]);
 
   const dismissAlert = async (id) => {
-    await axios.patch(`http://localhost:5000/alerts/${id}/resolve`);
+    await axios.patch(`${API_URL}/alerts/${id}/resolve`);
     fetchData();
   };
 
-const getRoomEnergy = (roomId) => {
-  const roomData = heatmap.find((h) => h._id === roomId);
-  return roomData ? roomData.totalUsage : 0;
-};
+  const getRoomEnergy = (roomId) => {
+    const roomData = roomAnalytics.find(
+      (item) => item.roomId === roomId || item._id === roomId
+    );
 
-  const energies = rooms.map((r) => getRoomEnergy(r._id));
-  const max = Math.max(...energies, 1);
+    return Number(roomData?.totalUsage || 0);
+  };
+
+  const energies = rooms.map((room) => getRoomEnergy(room._id));
+  const maxEnergy = Math.max(...energies, 1);
 
   const getColor = (value) => {
-    const ratio = value / max;
+    const ratio = value / maxEnergy;
+
     if (ratio < 0.3) return "#22c55e";
     if (ratio < 0.6) return "#f97316";
     return "#ef4444";
   };
 
   const toggleDevice = async (id) => {
-    await axios.post(`http://localhost:5000/devices/toggle/${id}`);
+    await axios.post(`${API_URL}/devices/toggle/${id}`);
     fetchData();
   };
 
+  const roomChartData = {
+    labels: rooms.map((room) => room.name),
+    datasets: [
+      {
+        label: "Energy Usage",
+        data: energies,
+        backgroundColor: rooms.map((_, index) => chartColors[index % chartColors.length])
+      }
+    ]
+  };
+
+  const deviceChartData = {
+    labels: deviceAnalytics.map((item) => item.deviceType),
+    datasets: [
+      {
+        label: "Energy Usage",
+        data: deviceAnalytics.map((item) => item.totalUsage),
+        backgroundColor: "#3b82f6"
+      }
+    ]
+  };
+
+  const timeSeriesChartData = {
+    labels: timeSeriesAnalytics.map((item) => item.period),
+    datasets: [
+      {
+        label: "Energy Usage",
+        data: timeSeriesAnalytics.map((item) => item.totalUsage),
+        borderColor: "#22c55e",
+        backgroundColor: "#22c55e",
+        tension: 0.35
+      }
+    ]
+  };
+
+  const pieChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: { color: "#e2e8f0" }
+      }
+    }
+  };
+
+  const axisChartOptions = {
+    ...pieChartOptions,
+    scales: {
+      x: {
+        ticks: { color: "#cbd5e1" },
+        grid: { color: "rgba(148, 163, 184, 0.18)" }
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { color: "#cbd5e1" },
+        grid: { color: "rgba(148, 163, 184, 0.18)" }
+      }
+    }
+  };
+
+  const hasRoomUsage = energies.some((value) => value > 0);
+  const hasDeviceUsage = deviceAnalytics.some((item) => item.totalUsage > 0);
+  const hasTimeSeriesUsage = timeSeriesAnalytics.some((item) => item.totalUsage > 0);
+  const alertRoomIds = useMemo(
+    () =>
+      new Set(
+        alerts
+          .map((alert) => alert.roomId?._id || alert.roomId)
+          .filter(Boolean)
+      ),
+    [alerts]
+  );
+
   return (
     <div className="app">
-      <h1>⚡ Smart Hostel Dashboard</h1>
+      <h1>Smart Hostel Dashboard</h1>
 
-      <h2>🚨 Alerts</h2>
-      {alerts.length === 0 ? (
-        <p>No alerts</p>
-      ) : (
-        alerts.map((a) => (
-          <div key={a._id} className={`alert ${a.level}`}>
-            <span>{a.message}</span>
-            <button onClick={() => dismissAlert(a._id)}>✖</button>
-          </div>
-        ))
-      )}
-
-      <h2>🔥 Room Heatmap</h2>
-      <div className="heatmap">
-        {rooms.map((room) => {
-          const energy = getRoomEnergy(room._id);
-
-          return (
-            <div
-              key={room._id}
-              className="heat-card"
-              style={{ background: getColor(energy) }}
-              onClick={() => setSelectedRoom(room)}
-            >
-              <h3>{room.name}</h3>
-              <p>{energy.toFixed(2)} Wh</p>
+      <section>
+        <h2>Alerts</h2>
+        {alerts.length === 0 ? (
+          <p className="empty-state">No alerts</p>
+        ) : (
+          alerts.map((alert) => (
+            <div key={alert._id} className={`alert ${alert.level}`}>
+              <span>{alert.message}</span>
+              <button onClick={() => dismissAlert(alert._id)} aria-label="Resolve alert">
+                X
+              </button>
             </div>
-          );
-        })}
-      </div>
+          ))
+        )}
+      </section>
+
+      <section>
+        <h2>Room Heatmap</h2>
+        <div className="heatmap">
+          {rooms.map((room) => {
+            const energy = getRoomEnergy(room._id);
+
+            return (
+              <button
+                key={room._id}
+                className={`heat-card ${alertRoomIds.has(room._id) ? "has-alert" : ""}`}
+                style={{ background: getColor(energy) }}
+                onClick={() => setSelectedRoom(room)}
+              >
+                <span>{room.name}</span>
+                <strong>{energy.toFixed(2)} Wh</strong>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="analytics-grid">
+        <div className="card chart-card">
+          <h2>Energy by Room</h2>
+          {hasRoomUsage ? (
+            <Pie data={roomChartData} options={pieChartOptions} />
+          ) : (
+            <p className="empty-state">No room analytics yet</p>
+          )}
+        </div>
+
+        <div className="card chart-card">
+          <h2>Energy by Device</h2>
+          {hasDeviceUsage ? (
+            <Bar data={deviceChartData} options={axisChartOptions} />
+          ) : (
+            <p className="empty-state">No device analytics yet</p>
+          )}
+        </div>
+
+        <div className="card chart-card wide">
+          <h2>Energy Over Time</h2>
+          {hasTimeSeriesUsage ? (
+            <Line data={timeSeriesChartData} options={axisChartOptions} />
+          ) : (
+            <p className="empty-state">No time series analytics yet</p>
+          )}
+        </div>
+      </section>
 
       {selectedRoom && (
         <div className="modal">
@@ -122,13 +273,16 @@ const getRoomEnergy = (roomId) => {
 
             <h3>Devices</h3>
             {devices
-              .filter((d) => d.roomId?._id === selectedRoom._id)
-              .map((d) => (
-                <div key={d._id}>
-                  {d.type} — {d.status ? "ON" : "OFF"}
-                  <button onClick={() => toggleDevice(d._id)}>
-                    Toggle
-                  </button>
+              .filter((device) => {
+                const roomId = device.roomId?._id || device.roomId;
+                return roomId === selectedRoom._id;
+              })
+              .map((device) => (
+                <div key={device._id} className="device-row">
+                  <span>
+                    {device.type} - {device.status ? "ON" : "OFF"}
+                  </span>
+                  <button onClick={() => toggleDevice(device._id)}>Toggle</button>
                 </div>
               ))}
 
