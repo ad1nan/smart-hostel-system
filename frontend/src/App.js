@@ -28,7 +28,7 @@ ChartJS.register(
   PointElement
 );
 
-const API_URL = (process.env.REACT_APP_API_URL || "http://localhost:5000").replace(/\/$/, "");
+const API_URL = (process.env.REACT_APP_API_URL || "http://localhost:4000").replace(/\/$/, "");
 
 const chartColors = ["#22c55e", "#f97316", "#3b82f6", "#eab308", "#ec4899", "#14b8a6"];
 
@@ -192,7 +192,7 @@ function App() {
   };
 
   const toggleDevice = async (id) => {
-    await axios.post(`${API_URL}/devices/toggle/${id}`);
+    await axios.patch(`${API_URL}/devices/${id}/toggle`);
     fetchData();
   };
 
