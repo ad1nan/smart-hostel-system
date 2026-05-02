@@ -40,5 +40,45 @@ services:
       - ROOMS_SERVICE_URL=http://backend:5000
       - DEVICES_SERVICE_URL=http://backend:5000
 
+  rooms:
+    build: ./services/rooms
+    container_name: rooms
+    ports:
+      - "5001:5001"
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/hostelDB
+
+  devices:
+    build: ./services/devices
+    container_name: devices
+    ports:
+      - "5002:5002"
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/hostelDB
+
+  alerts:
+    build: ./services/alerts
+    container_name: alerts
+    ports:
+      - "5003:5003"
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/hostelDB
+
+  analytics:
+    build: ./services/analytics
+    container_name: analytics
+    ports:
+      - "5004:5004"
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/hostelDB
+
 volumes:
   mongo_data:
