@@ -80,5 +80,11 @@ services:
     environment:
       - MONGO_URI=mongodb://mongo:27017/hostelDB
 
+  mqtt:
+    image: eclipse-mosquitto
+    container_name: mqtt
+    ports:
+      - "1883:1883"
+
 volumes:
   mongo_data:

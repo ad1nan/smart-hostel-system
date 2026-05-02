@@ -8,6 +8,9 @@ const deviceSchema = new mongoose.Schema({
   },
   status: { type: Boolean, default: false },
   power: Number,
+
+  deviceId: { type: String, unique: true },
+
   startTime: Date
 });
 
