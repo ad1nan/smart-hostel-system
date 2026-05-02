@@ -82,9 +82,9 @@ function App() {
   useEffect(() => {
     fetchData();
 
-    const socket = createSocket(API_URL, {
-      transports: ["websocket"]
-    });
+    const socket = createSocket("http://localhost:5000", {
+    transports: ["websocket"]
+   });
 
     const refreshDashboard = () => fetchData();
     const pollId = setInterval(refreshDashboard, 5000);
@@ -164,8 +164,12 @@ function App() {
   };
 
   const toggleDevice = async (id) => {
-    await axios.patch(`${API_URL}/devices/${id}/toggle`);
+  try {
+    await axios.post(`${API_URL}/devices/toggle/${id}`);
     fetchData();
+  } catch (err) {
+    console.error("Toggle failed:", err.response?.data || err.message);
+  }
   };
 
   const roomChartData = {

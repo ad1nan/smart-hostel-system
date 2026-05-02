@@ -15,6 +15,8 @@ services:
       - "5000:5000"
     depends_on:
       - mongo
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/hostelDB
 
   frontend:
     build: ./frontend
@@ -23,6 +25,20 @@ services:
       - "3000:3000"
     depends_on:
       - backend
+
+  api-gateway:
+    build: ./services/api-gateway
+    container_name: api-gateway
+    ports:
+      - "4000:4000"
+    depends_on:
+      - backend
+    environment:
+      - PORT=4000
+      - ALERTS_SERVICE_URL=http://backend:5000
+      - ANALYTICS_SERVICE_URL=http://backend:5000
+      - ROOMS_SERVICE_URL=http://backend:5000
+      - DEVICES_SERVICE_URL=http://backend:5000
 
 volumes:
   mongo_data:

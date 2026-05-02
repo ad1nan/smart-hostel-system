@@ -37,14 +37,14 @@ app.get("/devices", async (req, res) => {
   }
 });
 
-app.patch("/devices/:id/toggle", async (req, res) => {
+app.post("/devices/toggle/:id", async (req, res) => {
   try {
-    const response = await axios.patch(
-      `${DEVICES_SERVICE}/devices/${req.params.id}/toggle`
+    const response = await axios.post(
+      `${DEVICES_SERVICE}/devices/toggle/${req.params.id}`
     );
     res.json(response.data);
   } catch (err) {
-    console.error("Toggle error:", err.message);
+    console.error("Toggle error:", err.response?.data || err.message);
     res.status(500).json({ error: "Toggle failed" });
   }
 });

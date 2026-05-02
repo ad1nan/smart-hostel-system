@@ -11,7 +11,7 @@ const runAlerts = require("./services/alertEngine");
 const { ensureSeedData } = require("./services/seedService");
 
 const app = express();
-const mongoUri = process.env.MONGO_URI || "mongodb://localhost:27018/hostelDB";
+const mongoUri = process.env.MONGO_URI || "mongodb://mongo:27017/hostelDB";
 const port = process.env.PORT || 5000;
 
 app.use(cors());
@@ -66,5 +66,7 @@ const startServer = async () => {
     process.exit(1);
   }
 };
+
+console.log("Using Mongo URI:", mongoUri);
 
 startServer();
