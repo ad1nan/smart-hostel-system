@@ -41,6 +41,13 @@ function App() {
   const [timeSeriesAnalytics, setTimeSeriesAnalytics] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
 
+  const [kpi, setKpi] = useState({
+    totalEnergy: 0,
+    activeDevices: 0,
+    activeAlerts: 0,
+    topRoom: ""
+  });
+
   const fetchData = useCallback(async () => {
     try {
       const [
@@ -94,6 +101,41 @@ function App() {
     };
   }, [fetchData]);
 
+  useEffect(() => {
+  if (rooms.length === 0) return;
+
+  const totalEnergy = roomAnalytics.reduce(
+    (sum, r) => sum + (r.totalUsage || 0),
+    0
+  );
+
+  const activeDevices = devices.filter((d) => d.status).length;
+  const activeAlerts = alerts.length;
+
+  let maxRoom = "";
+  let maxEnergy = 0;
+
+  roomAnalytics.forEach((r) => {
+    if (r.totalUsage > maxEnergy) {
+      maxEnergy = r.totalUsage;
+
+      const room = rooms.find(
+        (rm) => rm._id === r.roomId || rm._id === r._id
+      );
+
+      maxRoom = room?.name || "";
+    }
+  });
+
+  setKpi({
+    totalEnergy: totalEnergy.toFixed(2),
+    activeDevices,
+    activeAlerts,
+    topRoom: maxRoom
+  });
+
+}, [roomAnalytics, devices, alerts, rooms]);
+
   const dismissAlert = async (id) => {
     await axios.patch(`${API_URL}/alerts/${id}/resolve`);
     fetchData();
@@ -106,6 +148,37 @@ function App() {
 
     return Number(roomData?.totalUsage || 0);
   };
+
+  const calculateKPI = () => {
+  // total energy from analytics (correct source)
+  const totalEnergy = roomAnalytics.reduce(
+    (sum, r) => sum + (r.totalUsage || 0),
+    0
+  );
+
+  const activeDevices = devices.filter((d) => d.status).length;
+  const activeAlerts = alerts.length;
+
+  let maxRoom = "";
+  let maxEnergy = 0;
+
+  roomAnalytics.forEach((r) => {
+    if (r.totalUsage > maxEnergy) {
+      maxEnergy = r.totalUsage;
+      const room = rooms.find(
+        (rm) => rm._id === r.roomId || rm._id === r._id
+      );
+      maxRoom = room?.name || "";
+    }
+  });
+
+  setKpi({
+    totalEnergy: totalEnergy.toFixed(2),
+    activeDevices,
+    activeAlerts,
+    topRoom: maxRoom
+  });
+};
 
   const energies = rooms.map((room) => getRoomEnergy(room._id));
   const maxEnergy = Math.max(...energies, 1);
@@ -199,6 +272,32 @@ function App() {
   return (
     <div className="app">
       <h1>Smart Hostel Dashboard</h1>
+
+      <section>
+  <h2>Overview</h2>
+
+  <div className="kpi-container">
+    <div className="kpi-card">
+      <h3>Total Energy</h3>
+      <p>{kpi.totalEnergy} Wh</p>
+    </div>
+
+    <div className="kpi-card">
+      <h3>Active Devices</h3>
+      <p>{kpi.activeDevices}</p>
+    </div>
+
+    <div className="kpi-card">
+      <h3>Active Alerts</h3>
+      <p>{kpi.activeAlerts}</p>
+    </div>
+
+    <div className="kpi-card">
+      <h3>Top Room</h3>
+      <p>{kpi.topRoom || "N/A"}</p>
+    </div>
+  </div>
+</section>
 
       <section>
         <h2>Alerts</h2>

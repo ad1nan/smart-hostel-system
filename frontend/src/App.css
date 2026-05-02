@@ -175,3 +175,31 @@ section {
     height: 330px;
   }
 }
+
+
+.kpi-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.kpi-card {
+  background: #1e293b;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+
+.kpi-card h3 {
+  font-size: 14px;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.kpi-card p {
+  font-size: 22px;
+  font-weight: bold;
+  color: #22c55e;
+}

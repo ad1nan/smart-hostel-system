@@ -20,7 +20,7 @@ exports.processDevices = async (io) => {
         continue;
       }
 
-      const usage = device.power * duration;
+      const usage = device.power * (5 / 3600);
 
       await Energy.create({
         deviceId: device._id,
