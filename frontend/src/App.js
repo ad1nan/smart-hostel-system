@@ -28,6 +28,8 @@ ChartJS.register(
   PointElement
 );
 
+axios.defaults.timeout = 5000;
+
 const API_URL = (process.env.REACT_APP_API_URL || "http://localhost:4000").replace(/\/$/, "");
 
 const chartColors = ["#22c55e", "#f97316", "#3b82f6", "#eab308", "#ec4899", "#14b8a6"];
@@ -73,18 +75,17 @@ function App() {
       setDeviceAnalytics(deviceAnalyticsRes.data);
       setTimeSeriesAnalytics(timeSeriesRes.data);
     } catch (err) {
-      console.error("Fetch error:", err);
+      console.error("Fetch error:", err.message);
     }
   }, []);
 
   useEffect(() => {
     fetchData();
 
-    const socket = createSocket(API_URL) || {
-      on: () => {},
-      off: () => {},
-      disconnect: () => {}
-    };
+    const socket = createSocket(API_URL, {
+      transports: ["websocket"]
+    });
+
     const refreshDashboard = () => fetchData();
     const pollId = setInterval(refreshDashboard, 5000);
 
@@ -102,39 +103,41 @@ function App() {
   }, [fetchData]);
 
   useEffect(() => {
-  if (rooms.length === 0) return;
+    if (rooms.length === 0) return;
 
-  const totalEnergy = roomAnalytics.reduce(
-    (sum, r) => sum + (r.totalUsage || 0),
-    0
-  );
+    const totalEnergy = roomAnalytics.reduce(
+      (sum, r) => sum + (r.totalUsage || r.totalEnergy || 0),
+      0
+    );
 
-  const activeDevices = devices.filter((d) => d.status).length;
-  const activeAlerts = alerts.length;
+    const activeDevices = devices.filter((d) => d.status).length;
+    const activeAlerts = alerts.length;
 
-  let maxRoom = "";
-  let maxEnergy = 0;
+    let maxRoom = "";
+    let maxEnergy = 0;
 
-  roomAnalytics.forEach((r) => {
-    if (r.totalUsage > maxEnergy) {
-      maxEnergy = r.totalUsage;
+    roomAnalytics.forEach((r) => {
+      const usage = r.totalUsage || r.totalEnergy || 0;
 
-      const room = rooms.find(
-        (rm) => rm._id === r.roomId || rm._id === r._id
-      );
+      if (usage > maxEnergy) {
+        maxEnergy = usage;
 
-      maxRoom = room?.name || "";
-    }
-  });
+        const room = rooms.find(
+          (rm) => rm._id === r.roomId || rm._id === r._id
+        );
 
-  setKpi({
-    totalEnergy: totalEnergy.toFixed(2),
-    activeDevices,
-    activeAlerts,
-    topRoom: maxRoom
-  });
+        maxRoom = room?.name || "";
+      }
+    });
 
-}, [roomAnalytics, devices, alerts, rooms]);
+    setKpi({
+      totalEnergy: totalEnergy.toFixed(2),
+      activeDevices,
+      activeAlerts,
+      topRoom: maxRoom
+    });
+
+  }, [roomAnalytics, devices, alerts, rooms]);
 
   const dismissAlert = async (id) => {
     await axios.patch(`${API_URL}/alerts/${id}/resolve`);
@@ -146,39 +149,8 @@ function App() {
       (item) => item.roomId === roomId || item._id === roomId
     );
 
-    return Number(roomData?.totalUsage || 0);
+    return Number(roomData?.totalUsage || roomData?.totalEnergy || 0);
   };
-
-  const calculateKPI = () => {
-  // total energy from analytics (correct source)
-  const totalEnergy = roomAnalytics.reduce(
-    (sum, r) => sum + (r.totalUsage || 0),
-    0
-  );
-
-  const activeDevices = devices.filter((d) => d.status).length;
-  const activeAlerts = alerts.length;
-
-  let maxRoom = "";
-  let maxEnergy = 0;
-
-  roomAnalytics.forEach((r) => {
-    if (r.totalUsage > maxEnergy) {
-      maxEnergy = r.totalUsage;
-      const room = rooms.find(
-        (rm) => rm._id === r.roomId || rm._id === r._id
-      );
-      maxRoom = room?.name || "";
-    }
-  });
-
-  setKpi({
-    totalEnergy: totalEnergy.toFixed(2),
-    activeDevices,
-    activeAlerts,
-    topRoom: maxRoom
-  });
-};
 
   const energies = rooms.map((room) => getRoomEnergy(room._id));
   const maxEnergy = Math.max(...energies, 1);
@@ -212,7 +184,7 @@ function App() {
     datasets: [
       {
         label: "Energy Usage",
-        data: deviceAnalytics.map((item) => item.totalUsage),
+        data: deviceAnalytics.map((item) => item.totalUsage || item.totalEnergy || 0),
         backgroundColor: "#3b82f6"
       }
     ]
@@ -223,7 +195,7 @@ function App() {
     datasets: [
       {
         label: "Energy Usage",
-        data: timeSeriesAnalytics.map((item) => item.totalUsage),
+        data: timeSeriesAnalytics.map((item) => item.totalUsage || item.totalEnergy || 0),
         borderColor: "#22c55e",
         backgroundColor: "#22c55e",
         tension: 0.35
@@ -257,8 +229,9 @@ function App() {
   };
 
   const hasRoomUsage = energies.some((value) => value > 0);
-  const hasDeviceUsage = deviceAnalytics.some((item) => item.totalUsage > 0);
-  const hasTimeSeriesUsage = timeSeriesAnalytics.some((item) => item.totalUsage > 0);
+  const hasDeviceUsage = deviceAnalytics.some((item) => (item.totalUsage || item.totalEnergy || 0) > 0);
+  const hasTimeSeriesUsage = timeSeriesAnalytics.some((item) => (item.totalUsage || item.totalEnergy || 0) > 0);
+
   const alertRoomIds = useMemo(
     () =>
       new Set(
@@ -274,30 +247,26 @@ function App() {
       <h1>Smart Hostel Dashboard</h1>
 
       <section>
-  <h2>Overview</h2>
-
-  <div className="kpi-container">
-    <div className="kpi-card">
-      <h3>Total Energy</h3>
-      <p>{kpi.totalEnergy} Wh</p>
-    </div>
-
-    <div className="kpi-card">
-      <h3>Active Devices</h3>
-      <p>{kpi.activeDevices}</p>
-    </div>
-
-    <div className="kpi-card">
-      <h3>Active Alerts</h3>
-      <p>{kpi.activeAlerts}</p>
-    </div>
-
-    <div className="kpi-card">
-      <h3>Top Room</h3>
-      <p>{kpi.topRoom || "N/A"}</p>
-    </div>
-  </div>
-</section>
+        <h2>Overview</h2>
+        <div className="kpi-container">
+          <div className="kpi-card">
+            <h3>Total Energy</h3>
+            <p>{kpi.totalEnergy} Wh</p>
+          </div>
+          <div className="kpi-card">
+            <h3>Active Devices</h3>
+            <p>{kpi.activeDevices}</p>
+          </div>
+          <div className="kpi-card">
+            <h3>Active Alerts</h3>
+            <p>{kpi.activeAlerts}</p>
+          </div>
+          <div className="kpi-card">
+            <h3>Top Room</h3>
+            <p>{kpi.topRoom || "N/A"}</p>
+          </div>
+        </div>
+      </section>
 
       <section>
         <h2>Alerts</h2>
@@ -307,9 +276,7 @@ function App() {
           alerts.map((alert) => (
             <div key={alert._id} className={`alert ${alert.level}`}>
               <span>{alert.message}</span>
-              <button onClick={() => dismissAlert(alert._id)} aria-label="Resolve alert">
-                X
-              </button>
+              <button onClick={() => dismissAlert(alert._id)}>X</button>
             </div>
           ))
         )}
@@ -339,29 +306,17 @@ function App() {
       <section className="analytics-grid">
         <div className="card chart-card">
           <h2>Energy by Room</h2>
-          {hasRoomUsage ? (
-            <Pie data={roomChartData} options={pieChartOptions} />
-          ) : (
-            <p className="empty-state">No room analytics yet</p>
-          )}
+          {hasRoomUsage ? <Pie data={roomChartData} options={pieChartOptions} /> : <p>No data</p>}
         </div>
 
         <div className="card chart-card">
           <h2>Energy by Device</h2>
-          {hasDeviceUsage ? (
-            <Bar data={deviceChartData} options={axisChartOptions} />
-          ) : (
-            <p className="empty-state">No device analytics yet</p>
-          )}
+          {hasDeviceUsage ? <Bar data={deviceChartData} options={axisChartOptions} /> : <p>No data</p>}
         </div>
 
         <div className="card chart-card wide">
           <h2>Energy Over Time</h2>
-          {hasTimeSeriesUsage ? (
-            <Line data={timeSeriesChartData} options={axisChartOptions} />
-          ) : (
-            <p className="empty-state">No time series analytics yet</p>
-          )}
+          {hasTimeSeriesUsage ? <Line data={timeSeriesChartData} options={axisChartOptions} /> : <p>No data</p>}
         </div>
       </section>
 
@@ -370,17 +325,14 @@ function App() {
           <div className="modal-content">
             <h2>{selectedRoom.name}</h2>
 
-            <h3>Devices</h3>
             {devices
               .filter((device) => {
                 const roomId = device.roomId?._id || device.roomId;
                 return roomId === selectedRoom._id;
               })
               .map((device) => (
-                <div key={device._id} className="device-row">
-                  <span>
-                    {device.type} - {device.status ? "ON" : "OFF"}
-                  </span>
+                <div key={device._id}>
+                  {device.type} - {device.status ? "ON" : "OFF"}
                   <button onClick={() => toggleDevice(device._id)}>Toggle</button>
                 </div>
               ))}

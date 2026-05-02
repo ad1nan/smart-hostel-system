@@ -9,6 +9,8 @@ app.use(express.json());
 const ROOMS_SERVICE = "http://localhost:5001";
 const DEVICES_SERVICE = "http://localhost:5002";
 const BACKEND_SERVICE = "http://localhost:5000";
+const ALERTS_SERVICE = "http://localhost:5003";
+const ANALYTICS_SERVICE = "http://localhost:5004";
 
 /* ---------- ROOMS ---------- */
 
@@ -47,9 +49,19 @@ app.patch("/devices/:id/toggle", async (req, res) => {
 
 app.get("/alerts", async (req, res) => {
   try {
-    const response = await axios.get(`${BACKEND_SERVICE}/alerts`);
+    const response = await axios.get("http://localhost:5003/alerts", {
+      timeout: 5000,
+      validateStatus: () => true, // ✅ prevents axios from throwing
+    });
+
+    if (response.status !== 200) {
+      console.error("Alerts service returned error:", response.data);
+      return res.status(500).json({ error: "Alerts service error" });
+    }
+
     res.json(response.data);
   } catch (err) {
+    console.error("Gateway error:", err.message);
     res.status(500).json({ error: "Alerts service error" });
   }
 });
@@ -57,40 +69,44 @@ app.get("/alerts", async (req, res) => {
 app.patch("/alerts/:id/resolve", async (req, res) => {
   try {
     const response = await axios.patch(
-      `${BACKEND_SERVICE}/alerts/${req.params.id}/resolve`
+      `${ALERTS_SERVICE}/alerts/${req.params.id}/resolve`
     );
     res.json(response.data);
   } catch (err) {
+    console.error(err.message);
     res.status(500).json({ error: "Alert resolve error" });
   }
 });
 
-/* ---------- ANALYTICS ---------- */
+/* ---------- ANALYTICS (MICROSERVICE) ---------- */
 
 app.get("/analytics/heatmap", async (req, res) => {
   try {
-    const response = await axios.get(`${BACKEND_SERVICE}/analytics/heatmap`);
+    const response = await axios.get(`${ANALYTICS_SERVICE}/analytics/heatmap`);
     res.json(response.data);
   } catch (err) {
-    res.status(500).json({ error: "Heatmap error" });
+    console.error("Analytics heatmap error:", err.message);
+    res.status(500).json({ error: "Analytics heatmap error" });
   }
 });
 
 app.get("/analytics/devices", async (req, res) => {
   try {
-    const response = await axios.get(`${BACKEND_SERVICE}/analytics/devices`);
+    const response = await axios.get(`${ANALYTICS_SERVICE}/analytics/devices`);
     res.json(response.data);
   } catch (err) {
-    res.status(500).json({ error: "Device analytics error" });
+    console.error("Analytics devices error:", err.message);
+    res.status(500).json({ error: "Analytics devices error" });
   }
 });
 
 app.get("/analytics/timeseries", async (req, res) => {
   try {
-    const response = await axios.get(`${BACKEND_SERVICE}/analytics/timeseries`);
+    const response = await axios.get(`${ANALYTICS_SERVICE}/analytics/timeseries`);
     res.json(response.data);
   } catch (err) {
-    res.status(500).json({ error: "Timeseries error" });
+    console.error("Analytics timeseries error:", err.message);
+    res.status(500).json({ error: "Analytics timeseries error" });
   }
 });
 
