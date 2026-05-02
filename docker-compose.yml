@@ -86,5 +86,16 @@ services:
     ports:
       - "1883:1883"
 
+  auth:
+    build: ./services/auth
+    container_name: auth
+    ports:
+      - "5005:5005"
+    depends_on:
+      - mongo
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/hostelDB
+      - JWT_SECRET=supersecretkey    
+
 volumes:
   mongo_data:

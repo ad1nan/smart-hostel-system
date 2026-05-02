@@ -8,6 +8,8 @@ const app = express();
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
+const authMiddleware = require("./middleware/authMiddleware");
+
 const ROOMS_SERVICE = process.env.ROOMS_SERVICE_URL;
 const DEVICES_SERVICE = process.env.DEVICES_SERVICE_URL;
 const ALERTS_SERVICE = process.env.ALERTS_SERVICE_URL;
@@ -15,7 +17,7 @@ const ANALYTICS_SERVICE = process.env.ANALYTICS_SERVICE_URL;
 
 /* ---------- ROOMS ---------- */
 
-app.get("/rooms", async (req, res) => {
+app.get("/rooms", authMiddleware, async (req, res) => {
   try {
     const response = await axios.get(`${ROOMS_SERVICE}/rooms`);
     res.json(response.data);
@@ -27,7 +29,7 @@ app.get("/rooms", async (req, res) => {
 
 /* ---------- DEVICES ---------- */
 
-app.get("/devices", async (req, res) => {
+app.get("/devices",authMiddleware, async (req, res) => {
   try {
     const response = await axios.get(`${DEVICES_SERVICE}/devices`);
     res.json(response.data);
@@ -37,7 +39,7 @@ app.get("/devices", async (req, res) => {
   }
 });
 
-app.post("/devices/toggle/:id", async (req, res) => {
+app.post("/devices/toggle/:id", authMiddleware, async (req, res) => {
   try {
     const response = await axios.post(
       `${DEVICES_SERVICE}/devices/toggle/${req.params.id}`
@@ -51,7 +53,7 @@ app.post("/devices/toggle/:id", async (req, res) => {
 
 /* ---------- ALERTS ---------- */
 
-app.get("/alerts", async (req, res) => {
+app.get("/alerts", authMiddleware, async (req, res) => {
   try {
     const response = await axios.get(`${ALERTS_SERVICE}/alerts`, {
       timeout: 5000,
@@ -70,7 +72,7 @@ app.get("/alerts", async (req, res) => {
   }
 });
 
-app.patch("/alerts/:id/resolve", async (req, res) => {
+app.patch("/alerts/:id/resolve",authMiddleware, async (req, res) => {
   try {
     const response = await axios.patch(
       `${ALERTS_SERVICE}/alerts/${req.params.id}/resolve`
@@ -84,7 +86,7 @@ app.patch("/alerts/:id/resolve", async (req, res) => {
 
 /* ---------- ANALYTICS ---------- */
 
-app.get("/analytics/heatmap", async (req, res) => {
+app.get("/analytics/heatmap", authMiddleware, async (req, res) => {
   try {
     const response = await axios.get(`${ANALYTICS_SERVICE}/analytics/heatmap`);
     res.json(response.data);
@@ -94,7 +96,7 @@ app.get("/analytics/heatmap", async (req, res) => {
   }
 });
 
-app.get("/analytics/devices", async (req, res) => {
+app.get("/analytics/devices",authMiddleware, async (req, res) => {
   try {
     const response = await axios.get(`${ANALYTICS_SERVICE}/analytics/devices`);
     res.json(response.data);
@@ -104,7 +106,7 @@ app.get("/analytics/devices", async (req, res) => {
   }
 });
 
-app.get("/analytics/timeseries", async (req, res) => {
+app.get("/analytics/timeseries", authMiddleware, async (req, res) => {
   try {
     const response = await axios.get(`${ANALYTICS_SERVICE}/analytics/timeseries`);
     res.json(response.data);
