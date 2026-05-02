@@ -79,28 +79,13 @@ function App() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchData();
+ useEffect(() => {
+  fetchData();
 
-    const socket = createSocket("http://localhost:5000", {
-    transports: ["websocket"]
-   });
+  const interval = setInterval(fetchData, 5000);
 
-    const refreshDashboard = () => fetchData();
-    const pollId = setInterval(refreshDashboard, 5000);
-
-    socket.on("alert_update", refreshDashboard);
-    socket.on("analytics_update", refreshDashboard);
-    socket.on("device_update", refreshDashboard);
-
-    return () => {
-      clearInterval(pollId);
-      socket.off("alert_update", refreshDashboard);
-      socket.off("analytics_update", refreshDashboard);
-      socket.off("device_update", refreshDashboard);
-      socket.disconnect();
-    };
-  }, [fetchData]);
+  return () => clearInterval(interval);
+}, [fetchData]);
 
   useEffect(() => {
     if (rooms.length === 0) return;
