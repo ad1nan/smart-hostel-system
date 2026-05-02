@@ -1,18 +1,25 @@
+require("dotenv").config();
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-// ✅ SAME DB (important)
-mongoose.connect("mongodb://localhost:27018/hostelDB")
+mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("Analytics DB Connected"))
   .catch(err => console.log(err));
 
 app.use("/analytics", require("./routes/analyticsRoutes"));
 
-app.listen(5004, () => {
-  console.log("Analytics Service running on 5004");
+app.get("/", (req, res) => {
+  res.send("Analytics Service running");
+});
+
+const PORT = process.env.PORT || 5004;
+
+app.listen(PORT, () => {
+  console.log(`Analytics Service running on ${PORT}`);
 });

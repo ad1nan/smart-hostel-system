@@ -1,19 +1,22 @@
-# Node
+# node
 node_modules/
+npm-debug.log*
 
-# Environment variables
+# env
 .env
+.env.*
 
-# Logs
-*.log
-
-# Build files
-dist/
+# build
 build/
+dist/
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
-# Docker (optional)
-docker volumes
+# logs
+logs/
+*.log
+
+# docker
+*.pid

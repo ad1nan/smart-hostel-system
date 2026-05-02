@@ -1,16 +1,17 @@
+require("dotenv").config();
+
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-const ROOMS_SERVICE = "http://localhost:5001";
-const DEVICES_SERVICE = "http://localhost:5002";
-const BACKEND_SERVICE = "http://localhost:5000";
-const ALERTS_SERVICE = "http://localhost:5003";
-const ANALYTICS_SERVICE = "http://localhost:5004";
+const ROOMS_SERVICE = process.env.ROOMS_SERVICE_URL;
+const DEVICES_SERVICE = process.env.DEVICES_SERVICE_URL;
+const ALERTS_SERVICE = process.env.ALERTS_SERVICE_URL;
+const ANALYTICS_SERVICE = process.env.ANALYTICS_SERVICE_URL;
 
 /* ---------- ROOMS ---------- */
 
@@ -19,6 +20,7 @@ app.get("/rooms", async (req, res) => {
     const response = await axios.get(`${ROOMS_SERVICE}/rooms`);
     res.json(response.data);
   } catch (err) {
+    console.error("Rooms error:", err.message);
     res.status(500).json({ error: "Rooms service error" });
   }
 });
@@ -30,6 +32,7 @@ app.get("/devices", async (req, res) => {
     const response = await axios.get(`${DEVICES_SERVICE}/devices`);
     res.json(response.data);
   } catch (err) {
+    console.error("Devices error:", err.message);
     res.status(500).json({ error: "Devices service error" });
   }
 });
@@ -41,6 +44,7 @@ app.patch("/devices/:id/toggle", async (req, res) => {
     );
     res.json(response.data);
   } catch (err) {
+    console.error("Toggle error:", err.message);
     res.status(500).json({ error: "Toggle failed" });
   }
 });
@@ -49,9 +53,9 @@ app.patch("/devices/:id/toggle", async (req, res) => {
 
 app.get("/alerts", async (req, res) => {
   try {
-    const response = await axios.get("http://localhost:5003/alerts", {
+    const response = await axios.get(`${ALERTS_SERVICE}/alerts`, {
       timeout: 5000,
-      validateStatus: () => true, // ✅ prevents axios from throwing
+      validateStatus: () => true,
     });
 
     if (response.status !== 200) {
@@ -73,12 +77,12 @@ app.patch("/alerts/:id/resolve", async (req, res) => {
     );
     res.json(response.data);
   } catch (err) {
-    console.error(err.message);
+    console.error("Resolve error:", err.message);
     res.status(500).json({ error: "Alert resolve error" });
   }
 });
 
-/* ---------- ANALYTICS (MICROSERVICE) ---------- */
+/* ---------- ANALYTICS ---------- */
 
 app.get("/analytics/heatmap", async (req, res) => {
   try {
@@ -110,9 +114,15 @@ app.get("/analytics/timeseries", async (req, res) => {
   }
 });
 
+/* ---------- HEALTH ---------- */
+
+app.get("/", (req, res) => {
+  res.send("API Gateway running");
+});
+
 /* ---------- START ---------- */
 
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, () => {
   console.log(`API Gateway running on port ${PORT}`);
