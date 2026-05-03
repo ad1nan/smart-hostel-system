@@ -39,6 +39,7 @@ services:
       - ANALYTICS_SERVICE_URL=http://backend:5000
       - ROOMS_SERVICE_URL=http://backend:5000
       - DEVICES_SERVICE_URL=http://backend:5000
+      - JWT_SECRET=supersecretkey 
 
   rooms:
     build: ./services/rooms

@@ -10,6 +10,8 @@ app.use(express.json());
 
 const authMiddleware = require("./middleware/authMiddleware");
 
+const roleMiddleware = require("./middleware/roleMiddleware");
+
 const ROOMS_SERVICE = process.env.ROOMS_SERVICE_URL;
 const DEVICES_SERVICE = process.env.DEVICES_SERVICE_URL;
 const ALERTS_SERVICE = process.env.ALERTS_SERVICE_URL;
@@ -39,7 +41,11 @@ app.get("/devices",authMiddleware, async (req, res) => {
   }
 });
 
-app.post("/devices/toggle/:id", authMiddleware, async (req, res) => {
+app.post(
+  "/devices/toggle/:id",
+  authMiddleware,
+  roleMiddleware(["admin"]),
+  async (req, res) => {
   try {
     const response = await axios.post(
       `${DEVICES_SERVICE}/devices/toggle/${req.params.id}`
@@ -72,7 +78,11 @@ app.get("/alerts", authMiddleware, async (req, res) => {
   }
 });
 
-app.patch("/alerts/:id/resolve",authMiddleware, async (req, res) => {
+app.patch(
+  "/alerts/:id/resolve",
+  authMiddleware,
+  roleMiddleware(["admin"]),
+  async (req, res) => {
   try {
     const response = await axios.patch(
       `${ALERTS_SERVICE}/alerts/${req.params.id}/resolve`
