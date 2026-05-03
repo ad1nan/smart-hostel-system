@@ -9,19 +9,25 @@ export default function Login({ onLogin }) {
   const handleLogin = async () => {
     try {
       const res = await axios.post(
-        "http://localhost:5005/auth/login", // ✅ AUTH SERVICE
+        "http://localhost:5005/auth/login", // ✅ auth service
         {
           username,
           password,
         }
       );
 
-      localStorage.setItem("token", res.data.token);
+      const token = res.data.token;
 
+      // ✅ store token
+      localStorage.setItem("token", token);
+
+      // ✅ IMPORTANT: trigger App update
       onLogin();
+
     } catch (err) {
-      console.error(err.response?.data || err.message);
-      alert("Invalid credentials");
+      console.error("Login error:", err.response?.data || err.message);
+
+      alert(err.response?.data?.error || "Invalid credentials");
     }
   };
 

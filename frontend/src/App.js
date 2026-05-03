@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./App.css";
 import API from "./api";
 import Login from "./Login";
+import { jwtDecode } from "jwt-decode";
+import axios from "axios";       
 
 import {
   Chart as ChartJS,
@@ -28,11 +30,26 @@ ChartJS.register(
   PointElement
 );
 
+
+const API_URL = "http://localhost:4000";
+
 function App() {
   // ✅ AUTH STATE
   const [isAuthenticated, setIsAuthenticated] = useState(
     !!localStorage.getItem("token")
   );
+
+
+  const token = localStorage.getItem("token");
+
+  let user = null;
+
+  try {
+    user = token ? jwtDecode(token) : null;
+  } catch (err) {
+    console.error("Invalid token");
+  }
+
 
   // DATA STATES
   const [rooms, setRooms] = useState([]);
@@ -155,15 +172,30 @@ function App() {
 
   // ACTIONS
   const dismissAlert = async (id) => {
+  try {
     await API.patch(`/alerts/${id}/resolve`);
     fetchData();
-  };
+  } catch (err) {
+    if (err.response?.status === 403) {
+      alert("Access denied: Only admin can resolve alerts");
+    } else {
+      console.error("Resolve failed:", err.message);
+    }
+  }
+};
 
-  const toggleDevice = async (id) => {
+const toggleDevice = async (id) => {
+  try {
     await API.post(`/devices/toggle/${id}`);
     fetchData();
-  };
-
+  } catch (err) {
+    if (err.response?.status === 403) {
+      alert("Access denied: Only admin can toggle devices");
+    } else {
+      console.error("Toggle failed:", err.message);
+    }
+  }
+};
   // CHART DATA
   const roomChartData = {
     labels: rooms.map((room) => room.name),
@@ -249,7 +281,9 @@ function App() {
               alerts.map((alert) => (
                 <div key={alert._id} className={`alert ${alert.level}`}>
                   <span>{alert.message}</span>
-                  <button onClick={() => dismissAlert(alert._id)}>X</button>
+                  {user?.role === "admin" && (
+  <button onClick={() => dismissAlert(alert._id)}>X</button>
+)}
                 </div>
               ))
             )}
@@ -314,9 +348,11 @@ function App() {
                   .map((device) => (
                     <div key={device._id} className="device-row">
                       {device.type} - {device.status ? "ON" : "OFF"}
-                      <button onClick={() => toggleDevice(device._id)}>
-                        Toggle
-                      </button>
+                      {user?.role === "admin" && (
+  <button onClick={() => toggleDevice(device._id)}>
+    Toggle
+  </button>
+)}
                     </div>
                   ))}
 
